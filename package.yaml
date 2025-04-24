@@ -36,6 +36,7 @@ dependencies:
   - mtl
   - pipes
   - pipes-network
+  - text
 
 library:
   source-dirs: src
@@ -43,6 +44,9 @@ library:
     - Server
     - ServerEnv
     - ServerM
+  dependencies:
+    - attoparsec
+    - pipes-attoparsec
 
 executables:
   codecrafters-http-server-exe:
