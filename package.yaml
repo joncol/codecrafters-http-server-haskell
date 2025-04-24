@@ -27,16 +27,29 @@ ghc-options:
   - -Wmissing-home-modules
   - -Wpartial-fields
   - -Wredundant-constraints
+  - -fdefer-typed-holes
 
 dependencies:
   - base >= 4.19 && < 5
   - network # establish a simple TCP network
   - bytestring # useful to send bytes over the network
+  - mtl
+  - pipes
+  - pipes-network
+
+library:
+  source-dirs: src
+  exposed-modules:
+    - Server
+    - ServerEnv
+    - ServerM
 
 executables:
   codecrafters-http-server-exe:
     main: Main.hs
     source-dirs: app
+    dependencies:
+      - codecrafters-http-server
     ghc-options:
       - -threaded
       - -rtsopts
