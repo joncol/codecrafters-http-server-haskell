@@ -2,6 +2,21 @@ name: codecrafters-http-server
 version: 0.1.0.0
 license: BSD3
 
+default-extensions:
+  - DerivingVia
+  - GeneralizedNewtypeDeriving
+  - ImportQualifiedPost
+  - LambdaCase
+  - MultiWayIf
+  - NamedFieldPuns
+  - NegativeLiterals
+  - OverloadedRecordDot
+  - OverloadedStrings
+  - PartialTypeSignatures
+  - RecordWildCards
+  - ScopedTypeVariables
+  - TupleSections
+
 ghc-options:
   - -Wall
   - -Wcompat
