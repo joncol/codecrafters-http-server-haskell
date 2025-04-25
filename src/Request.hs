@@ -5,6 +5,8 @@ module Request
 
 import Data.Text (Text)
 
+import HttpHeader
+
 data Request = Request
   { method :: HttpMethod
   , target :: Text
@@ -15,5 +17,3 @@ data Request = Request
   deriving (Show)
 
 data HttpMethod = GET deriving (Eq, Show)
-
-type HttpHeader = (Text, Text)

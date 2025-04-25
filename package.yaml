@@ -47,7 +47,9 @@ library:
     - ServerM
   dependencies:
     - attoparsec
+    - bytestring-encoding
     - pipes-attoparsec
+    - text-show
 
 executables:
   codecrafters-http-server-exe:
