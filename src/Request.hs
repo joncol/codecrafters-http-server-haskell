@@ -10,7 +10,7 @@ import HttpHeader
 data Request = Request
   { method :: HttpMethod
   , target :: Text
-  , httpVersion :: Text
+  , version :: Text
   , httpHeaders :: [HttpHeader]
   , body :: Text
   }
