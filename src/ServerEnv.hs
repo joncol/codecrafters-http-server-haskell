@@ -2,7 +2,9 @@ module ServerEnv
   ( ServerEnv (..)
   ) where
 
-data ServerEnv = ServerEnv
-  {
+import Options
+
+newtype ServerEnv = ServerEnv
+  { options :: Options
   }
   deriving (Show)

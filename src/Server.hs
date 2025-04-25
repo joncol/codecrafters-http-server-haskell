@@ -2,15 +2,20 @@ module Server
   ( server
   ) where
 
+import Control.Monad.Reader
 import Data.Foldable qualified as Foldable
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
+import Data.Text.IO qualified as TIO
 import Pipes
 import Pipes.Attoparsec qualified as A
 import Pipes.Network.TCP
 import Pipes.Prelude qualified as P
+import System.Directory (doesFileExist)
+import System.FilePath ((</>))
 import TextShow
 
+import Options
 import Parser
 import Request
 import Response
@@ -21,36 +26,58 @@ server :: MonadIO m => Socket -> Effect (ServerM ServerEnv m) ()
 server socket =
   do
     void $ A.parsed parseRequest (fromSocket socket bufferSize)
-    >-> P.map handleRequest
+    >-> P.mapM handleRequest
     >-> P.map encodeResponse
     >-> toSocket socket
 
-handleRequest :: Request -> Response
+handleRequest :: MonadIO m => Request -> ServerM ServerEnv m Response
 handleRequest request
-  | "/" == request.target = emptyResponse OK
+  | "/" == request.target = pure $ emptyResponse OK
   | "/echo/" `T.isPrefixOf` request.target =
       let body = fromMaybe "" $ T.stripPrefix "/echo/" request.target
-      in  (emptyResponse OK)
-            { headers =
-                [ ("Content-Type", "text/plain")
-                , ("Content-Length", showt (T.length body))
-                ]
-            , body
-            }
+      in  pure
+            (emptyResponse OK)
+              { headers =
+                  [ ("Content-Type", "text/plain")
+                  , ("Content-Length", showt (T.length body))
+                  ]
+              , body
+              }
   | "/user-agent" == request.target =
       let body =
             maybe "" snd $
               Foldable.find
                 ((== "user-agent") . T.toLower . fst)
                 request.httpHeaders
-      in  (emptyResponse OK)
-            { headers =
-                [ ("Content-Type", "text/plain")
-                , ("Content-Length", showt (T.length body))
-                ]
-            , body
-            }
-  | otherwise = emptyResponse NotFound
+      in  pure
+            (emptyResponse OK)
+              { headers =
+                  [ ("Content-Type", "text/plain")
+                  , ("Content-Length", showt (T.length body))
+                  ]
+              , body
+              }
+  | "/files/" `T.isPrefixOf` request.target = do
+      let mFilename = T.stripPrefix "/files/" request.target
+      case mFilename of
+        Just filename -> do
+          env <- ask
+          let fullPath = env.options.directory </> T.unpack filename
+          fileExists <- liftIO $ doesFileExist fullPath
+          if fileExists
+            then do
+              contents <- liftIO $ TIO.readFile fullPath
+              pure $
+                (emptyResponse OK)
+                  { headers =
+                      [ ("Content-Type", "application/octet-stream")
+                      , ("Content-Length", showt $ T.length contents)
+                      ]
+                  , body = contents
+                  }
+            else pure $ emptyResponse NotFound
+        Nothing -> pure $ emptyResponse NotFound
+  | otherwise = pure $ emptyResponse NotFound
   where
     emptyResponse :: HttpStatus -> Response
     emptyResponse status = Response {status, headers = [], body = ""}

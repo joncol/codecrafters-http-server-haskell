@@ -34,6 +34,7 @@ dependencies:
   - network # establish a simple TCP network
   - bytestring # useful to send bytes over the network
   - mtl
+  - optparse-applicative
   - pipes
   - pipes-network
   - safe
@@ -42,12 +43,15 @@ dependencies:
 library:
   source-dirs: src
   exposed-modules:
+    - Options
     - Server
     - ServerEnv
     - ServerM
   dependencies:
     - attoparsec
     - bytestring-encoding
+    - directory
+    - filepath
     - pipes-attoparsec
     - text-show
 

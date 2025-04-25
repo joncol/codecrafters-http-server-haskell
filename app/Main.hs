@@ -7,10 +7,12 @@ import Control.Exception qualified as E
 import Control.Monad (forever)
 import Control.Monad.Reader
 import Network.Socket hiding (socket)
+import Options.Applicative
 import Pipes
 import Safe (headErr)
 import System.IO
 
+import Options
 import Server
 import ServerEnv
 import ServerM
@@ -26,13 +28,22 @@ main = do
 
   putStrLn $ "Listening on " <> host <> ":" <> port
 
-  let serverEnv = ServerEnv {}
+  options <- execParser opts
+  let serverEnv = ServerEnv { options }
 
   runTCPServer (Just host) port $
     \clientSocket -> do
       peerName <- getPeerName clientSocket
       putStrLn $ "Accepted connection from " <> show peerName
       flip runReaderT serverEnv . runServerM . runEffect $ server clientSocket
+  where
+    opts =
+      info
+        (optionsParser <**> helper)
+        ( fullDesc
+            <> progDesc "CodeCrafters HTTP server challenge"
+            <> header "Simple HTTP server"
+        )
 
 -- See: https://hackage.haskell.org/package/network-3.2.7.0/docs/Network-Socket.html.
 runTCPServer
