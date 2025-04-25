@@ -36,6 +36,7 @@ dependencies:
   - mtl
   - pipes
   - pipes-network
+  - safe
   - text
 
 library:

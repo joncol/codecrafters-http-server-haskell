@@ -8,6 +8,7 @@ import Control.Monad (forever)
 import Control.Monad.Reader
 import Network.Socket hiding (socket)
 import Pipes
+import Safe (headErr)
 import System.IO
 
 import Server
@@ -51,7 +52,7 @@ runTCPServer mhost port server' = withSocketsDo $ do
               { addrFlags = [AI_PASSIVE]
               , addrSocketType = Stream
               }
-      head <$> getAddrInfo (Just hints) mhost (Just port)
+      headErr <$> getAddrInfo (Just hints) mhost (Just port)
 
     open :: AddrInfo -> IO Socket
     open addr = E.bracketOnError (openSocket addr) close $ \sock -> do
