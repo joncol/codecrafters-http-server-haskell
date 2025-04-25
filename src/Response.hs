@@ -21,6 +21,8 @@ data Response = Response
 data HttpStatus
   = -- | 200 OK
     OK
+  | -- | 201 Created
+    Created
   | -- | 404 Not Found
     NotFound
   deriving (Show)
@@ -35,8 +37,10 @@ encodeResponse Response {..} =
     <> "\r\n"
     <> enc body
 
+-- TODO: Don't repeat version here.
 encodeHttpStatus :: HttpStatus -> BS.ByteString
 encodeHttpStatus OK = "HTTP/1.1 200 OK\r\n"
+encodeHttpStatus Created = "HTTP/1.1 201 Created\r\n"
 encodeHttpStatus NotFound = "HTTP/1.1 404 Not Found\r\n"
 
 encodeHeader :: HttpHeader -> BS.ByteString

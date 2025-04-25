@@ -16,4 +16,4 @@ data Request = Request
   }
   deriving (Show)
 
-data HttpMethod = GET deriving (Eq, Show)
+data HttpMethod = GET | POST deriving (Eq, Show)

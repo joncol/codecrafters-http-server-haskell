@@ -28,6 +28,7 @@ server socket =
     void $ A.parsed parseRequest (fromSocket socket bufferSize)
     >-> P.mapM handleRequest
     >-> P.map encodeResponse
+    >-> P.tee P.print
     >-> toSocket socket
 
 handleRequest :: MonadIO m => Request -> ServerM ServerEnv m Response
@@ -57,7 +58,7 @@ handleRequest request
                   ]
               , body
               }
-  | "/files/" `T.isPrefixOf` request.target = do
+  | "/files/" `T.isPrefixOf` request.target && request.method == GET = do
       let mFilename = T.stripPrefix "/files/" request.target
       case mFilename of
         Just filename -> do
@@ -76,6 +77,15 @@ handleRequest request
                   , body = contents
                   }
             else pure $ emptyResponse NotFound
+        Nothing -> pure $ emptyResponse NotFound
+  | "/files/" `T.isPrefixOf` request.target && request.method == POST = do
+      let mFilename = T.stripPrefix "/files/" request.target
+      case mFilename of
+        Just filename -> do
+          env <- ask
+          let fullPath = env.options.directory </> T.unpack filename
+          liftIO $ TIO.writeFile fullPath request.body
+          pure $ (emptyResponse Created) {headers = [("Content-Length", "0")]}
         Nothing -> pure $ emptyResponse NotFound
   | otherwise = pure $ emptyResponse NotFound
   where

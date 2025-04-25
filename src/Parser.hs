@@ -3,19 +3,25 @@ module Parser
   , parseHeader
   ) where
 
+import Control.Applicative ((<|>))
 import Control.Monad (void)
+import Control.Monad.Trans.Maybe
 import Data.Attoparsec.ByteString
 import Data.Attoparsec.ByteString.Char8 qualified as A
+import Data.Foldable qualified as Foldable
+import Data.Functor (($>))
+import Data.Maybe (fromMaybe)
 import Data.Monoid (Any (..))
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
+import Text.Read qualified as T
 
 import HttpHeader
 import Request
 
 parseRequest :: Parser Request
 parseRequest = do
-  void "GET"
+  method <- "GET" $> GET <|> "POST" $> POST
   void A.space
   target <- TE.decodeLatin1 <$> takeTill A.isSpace_w8
   void A.space
@@ -23,13 +29,26 @@ parseRequest = do
   void A.endOfLine
   httpHeaders <- parseHeader `sepBy` A.endOfLine
   void A.endOfLine
+  void A.endOfLine
+  mContentLength :: Maybe Int <-
+    runMaybeT $ do
+      headerValue <-
+        hoistMaybe $
+          T.unpack . snd
+            <$> Foldable.find
+              (\(name, _) -> T.toLower name == "content-length")
+              httpHeaders
+      hoistMaybe $ T.readMaybe headerValue
+
+  let contentLength = fromMaybe 0 mContentLength
+  body <- T.pack <$> count contentLength A.anyChar
   pure
     Request
-      { method = GET
+      { method
       , target
       , version
       , httpHeaders
-      , body = ""
+      , body
       }
 
 parseHeader :: Parser HttpHeader

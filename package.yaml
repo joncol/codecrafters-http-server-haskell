@@ -54,6 +54,7 @@ library:
     - filepath
     - pipes-attoparsec
     - text-show
+    - transformers
 
 executables:
   codecrafters-http-server-exe:
