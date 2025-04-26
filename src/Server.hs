@@ -3,7 +3,7 @@ module Server
   ) where
 
 import Control.Monad.Reader
-import Data.Maybe (fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import Pipes
@@ -36,12 +36,18 @@ handleRequest request
   | "/" == request.target = pure $ emptyResponse OK
   | "/echo/" `T.isPrefixOf` request.target =
       let body = fromMaybe "" $ T.stripPrefix "/echo/" request.target
+          mAcceptEncoding = getHeaderValue "Accept-Encoding" request.headers
+          mContentEncoding =
+            if (T.toLower <$> mAcceptEncoding) == Just "gzip"
+              then Just ("Content-Encoding", "gzip")
+              else Nothing
       in  pure
             (emptyResponse OK)
               { Response.headers =
                   [ ("Content-Type", "text/plain")
-                  , ("Content-Length", showt (T.length body))
+                  , ("Content-Length", showt $ T.length body)
                   ]
+                    <> catMaybes [mContentEncoding]
               , body
               }
   | "/user-agent" == request.target =
