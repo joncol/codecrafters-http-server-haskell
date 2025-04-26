@@ -8,7 +8,6 @@ import Control.Monad (void)
 import Control.Monad.Trans.Maybe
 import Data.Attoparsec.ByteString
 import Data.Attoparsec.ByteString.Char8 qualified as A
-import Data.Foldable qualified as Foldable
 import Data.Functor (($>))
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Any (..))
@@ -33,11 +32,7 @@ parseRequest = do
   mContentLength :: Maybe Int <-
     runMaybeT $ do
       headerValue <-
-        hoistMaybe $
-          T.unpack . snd
-            <$> Foldable.find
-              (\(name, _) -> T.toLower name == "content-length")
-              httpHeaders
+        hoistMaybe $ T.unpack <$> getHeaderValue "content-length" httpHeaders
       hoistMaybe $ T.readMaybe headerValue
 
   let contentLength = fromMaybe 0 mContentLength

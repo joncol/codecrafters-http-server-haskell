@@ -3,7 +3,6 @@ module Server
   ) where
 
 import Control.Monad.Reader
-import Data.Foldable qualified as Foldable
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
@@ -15,6 +14,7 @@ import System.Directory (doesFileExist)
 import System.FilePath ((</>))
 import TextShow
 
+import HttpHeader
 import Options
 import Parser
 import Request
@@ -45,11 +45,7 @@ handleRequest request
               , body
               }
   | "/user-agent" == request.target =
-      let body =
-            maybe "" snd $
-              Foldable.find
-                ((== "user-agent") . T.toLower . fst)
-                request.httpHeaders
+      let body = fromMaybe "" $ getHeaderValue "user-agent" request.httpHeaders
       in  pure
             (emptyResponse OK)
               { headers =
