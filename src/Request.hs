@@ -11,7 +11,7 @@ data Request = Request
   { method :: HttpMethod
   , target :: Text
   , version :: Text
-  , httpHeaders :: [HttpHeader]
+  , headers :: [HttpHeader]
   , body :: Text
   }
   deriving (Show)

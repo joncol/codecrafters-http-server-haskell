@@ -26,13 +26,13 @@ parseRequest = do
   void A.space
   version <- TE.decodeLatin1 <$> takeTill A.isEndOfLine
   void A.endOfLine
-  httpHeaders <- parseHeader `sepBy` A.endOfLine
+  headers <- parseHeader `sepBy` A.endOfLine
   void A.endOfLine
   void A.endOfLine
   mContentLength :: Maybe Int <-
     runMaybeT $ do
       headerValue <-
-        hoistMaybe $ T.unpack <$> getHeaderValue "content-length" httpHeaders
+        hoistMaybe $ T.unpack <$> getHeaderValue "content-length" headers
       hoistMaybe $ T.readMaybe headerValue
 
   let contentLength = fromMaybe 0 mContentLength
@@ -42,7 +42,7 @@ parseRequest = do
       { method
       , target
       , version
-      , httpHeaders
+      , headers
       , body
       }
 

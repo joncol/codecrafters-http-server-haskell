@@ -38,17 +38,17 @@ handleRequest request
       let body = fromMaybe "" $ T.stripPrefix "/echo/" request.target
       in  pure
             (emptyResponse OK)
-              { headers =
+              { Response.headers =
                   [ ("Content-Type", "text/plain")
                   , ("Content-Length", showt (T.length body))
                   ]
               , body
               }
   | "/user-agent" == request.target =
-      let body = fromMaybe "" $ getHeaderValue "user-agent" request.httpHeaders
+      let body = fromMaybe "" $ getHeaderValue "user-agent" request.headers
       in  pure
             (emptyResponse OK)
-              { headers =
+              { Response.headers =
                   [ ("Content-Type", "text/plain")
                   , ("Content-Length", showt (T.length body))
                   ]
@@ -66,7 +66,7 @@ handleRequest request
               contents <- liftIO $ TIO.readFile fullPath
               pure $
                 (emptyResponse OK)
-                  { headers =
+                  { Response.headers =
                       [ ("Content-Type", "application/octet-stream")
                       , ("Content-Length", showt $ T.length contents)
                       ]
@@ -81,7 +81,10 @@ handleRequest request
           env <- ask
           let fullPath = env.options.directory </> T.unpack filename
           liftIO $ TIO.writeFile fullPath request.body
-          pure $ (emptyResponse Created) {headers = [("Content-Length", "0")]}
+          pure $
+            (emptyResponse Created)
+              { Response.headers = [("Content-Length", "0")]
+              }
         Nothing -> pure $ emptyResponse NotFound
   | otherwise = pure $ emptyResponse NotFound
   where
