@@ -2,7 +2,11 @@ module Server
   ( server
   ) where
 
+import Control.Monad.Extra (ifM)
 import Control.Monad.Reader
+import Data.Attoparsec.ByteString (parseOnly)
+import Data.ByteString.Encoding
+import Data.Either (fromRight)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
@@ -34,14 +38,23 @@ server socket =
 handleRequest :: MonadIO m => Request -> ServerM ServerEnv m Response
 handleRequest request
   | "/" == request.target = pure $ emptyResponse OK
-  | "/echo/" `T.isPrefixOf` request.target =
+  | "/echo/" `T.isPrefixOf` request.target = do
       let body = fromMaybe "" $ T.stripPrefix "/echo/" request.target
-          mAcceptEncoding = getHeaderValue "Accept-Encoding" request.headers
+          mAcceptEncodings =
+            parseOnly parseHeaderValueStringList . encode latin1
+              <$> getHeaderValue "Accept-Encoding" request.headers
+          mAcceptEncodings' =
+            fromRight (error $ "couldn't parse string list")
+              <$> mAcceptEncodings
           mContentEncoding =
-            if (T.toLower <$> mAcceptEncoding) == Just "gzip"
-              then Just ("Content-Encoding", "gzip")
-              else Nothing
-      in  pure
+            ifM
+              ( any (\enc -> T.toLower enc == "gzip")
+                  <$> mAcceptEncodings'
+              )
+              (Just ("Content-Encoding", "gzip"))
+              Nothing
+      liftIO . putStrLn $ "mAcceptEncodings': " <> show mAcceptEncodings'
+      pure
             (emptyResponse OK)
               { Response.headers =
                   [ ("Content-Type", "text/plain")

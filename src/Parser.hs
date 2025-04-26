@@ -1,6 +1,7 @@
 module Parser
   ( parseRequest
   , parseHeader
+  , parseHeaderValueStringList
   ) where
 
 import Control.Applicative ((<|>))
@@ -9,8 +10,10 @@ import Control.Monad.Trans.Maybe
 import Data.Attoparsec.ByteString
 import Data.Attoparsec.ByteString.Char8 qualified as A
 import Data.Functor (($>))
+import Data.List ((\\))
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Any (..))
+import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Text.Read qualified as T
@@ -67,10 +70,27 @@ parseHeader = do
             anyPass
               [ A.isAlpha_iso8859_15
               , A.isDigit
-              , A.inClass "-_ :;.,\\/\"'?!(){}[]@<>=+*#$&`|~^%"
+              , A.inClass headerValueChars
               ]
         )
   pure (name, value)
+
+-- | Parses comma separated list of strings.
+parseHeaderValueStringList :: Parser [Text]
+parseHeaderValueStringList =
+  fmap T.pack
+    <$> many1'
+      ( A.satisfy $
+          anyPass
+            [ A.isAlpha_iso8859_15
+            , A.isDigit
+            , A.inClass $ headerValueChars \\ ", "
+            ]
+      )
+      `sepBy` ", "
+
+headerValueChars :: [Char]
+headerValueChars = "-_ :;.,\\/\"'?!(){}[]@<>=+*#$&`|~^%"
 
 anyPass :: [a -> Bool] -> a -> Bool
 anyPass ps = getAny . foldMap (fmap Any) ps

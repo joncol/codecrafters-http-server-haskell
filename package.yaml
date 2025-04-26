@@ -51,6 +51,7 @@ library:
     - attoparsec
     - bytestring-encoding
     - directory
+    - extra
     - filepath
     - pipes-attoparsec
     - text-show
