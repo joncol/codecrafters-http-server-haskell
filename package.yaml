@@ -51,11 +51,11 @@ library:
     - attoparsec
     - bytestring-encoding
     - directory
-    - extra
     - filepath
     - pipes-attoparsec
     - text-show
     - transformers
+    - zlib
 
 executables:
   codecrafters-http-server-exe:

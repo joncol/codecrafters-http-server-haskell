@@ -2,14 +2,16 @@ module Server
   ( server
   ) where
 
-import Control.Monad.Extra (ifM)
+import Codec.Compression.GZip qualified as GZip
 import Control.Monad.Reader
 import Data.Attoparsec.ByteString (parseOnly)
-import Data.ByteString.Encoding
+import Data.ByteString.Encoding qualified as BSE
+import Data.ByteString.Lazy.Encoding qualified as BSLE
 import Data.Either (fromRight)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
+import Data.Text.Lazy qualified as TL
 import Pipes
 import Pipes.Attoparsec qualified as A
 import Pipes.Network.TCP
@@ -32,36 +34,46 @@ server socket =
     void $ A.parsed parseRequest (fromSocket socket bufferSize)
     >-> P.mapM handleRequest
     >-> P.map encodeResponse
-    >-> P.tee P.print
     >-> toSocket socket
 
 handleRequest :: MonadIO m => Request -> ServerM ServerEnv m Response
 handleRequest request
   | "/" == request.target = pure $ emptyResponse OK
-  | "/echo/" `T.isPrefixOf` request.target = do
-      let body = fromMaybe "" $ T.stripPrefix "/echo/" request.target
-          mAcceptEncodings =
-            parseOnly parseHeaderValueStringList . encode latin1
+  | "/echo/" `T.isPrefixOf` request.target =
+      let mAcceptEncodings =
+            parseOnly parseHeaderValueStringList . BSE.encode BSE.latin1
               <$> getHeaderValue "Accept-Encoding" request.headers
           mAcceptEncodings' =
-            fromRight (error $ "couldn't parse string list")
+            fromRight (error "couldn't parse string list")
               <$> mAcceptEncodings
+          doGZipCompress =
+            ( any (\enc -> T.toLower enc == "gzip")
+                <$> mAcceptEncodings'
+            )
+              == Just True
           mContentEncoding =
-            ifM
-              ( any (\enc -> T.toLower enc == "gzip")
-                  <$> mAcceptEncodings'
-              )
-              (Just ("Content-Encoding", "gzip"))
-              Nothing
-      liftIO . putStrLn $ "mAcceptEncodings': " <> show mAcceptEncodings'
-      pure
+            if doGZipCompress
+              then Just ("Content-Encoding", "gzip")
+              else Nothing
+          message = fromMaybe "" $ T.stripPrefix "/echo/" request.target
+          compressor =
+            if doGZipCompress
+              then
+                TL.toStrict
+                  . BSLE.decode BSLE.latin1
+                  . GZip.compress
+                  . BSLE.encode BSLE.latin1
+                  . TL.fromStrict
+              else id
+          message' = compressor message
+      in  pure
             (emptyResponse OK)
               { Response.headers =
                   [ ("Content-Type", "text/plain")
-                  , ("Content-Length", showt $ T.length body)
+                  , ("Content-Length", showt $ T.length message')
                   ]
                     <> catMaybes [mContentEncoding]
-              , body
+              , body = message'
               }
   | "/user-agent" == request.target =
       let body = fromMaybe "" $ getHeaderValue "user-agent" request.headers
