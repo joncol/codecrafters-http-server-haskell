@@ -3,6 +3,7 @@ module Server
   ) where
 
 import Codec.Compression.GZip qualified as GZip
+import Control.Monad (when)
 import Control.Monad.Reader
 import Data.Attoparsec.ByteString (parseOnly)
 import Data.ByteString.Encoding qualified as BSE
@@ -32,13 +33,31 @@ server :: MonadIO m => Socket -> Effect (ServerM ServerEnv m) ()
 server socket =
   do
     void $ A.parsed parseRequest (fromSocket socket bufferSize)
-    >-> P.mapM handleRequest
+    >-> P.mapM (\request -> (request,) <$> handleRequest request)
+    >-> P.map (uncurry handleConnectionCloseHeader)
+    >-> takeWhile'' (not . containsCloseHeader . Response.headers)
     >-> P.map encodeResponse
     >-> toSocket socket
 
+-- | Passes elements downstream until a predicate returns false for an element.
+--
+-- Note that this function also passes through the first element that caused the
+-- predicate to return false, but no further elements.
+takeWhile'' :: Functor m => (a -> Bool) -> Pipe a a m ()
+takeWhile'' predicate = go
+  where
+    go = do
+      a <- await
+      yield a
+      when (predicate a) go
+
 handleRequest :: MonadIO m => Request -> ServerM ServerEnv m Response
 handleRequest request
-  | "/" == request.target = pure $ emptyResponse OK
+  | "/" == request.target =
+      pure
+        (emptyResponse OK)
+          { Response.headers = [("Content-Length", "0")]
+          }
   | "/echo/" `T.isPrefixOf` request.target =
       let mAcceptEncodings =
             parseOnly parseHeaderValueStringList . BSE.encode BSE.latin1
@@ -76,12 +95,12 @@ handleRequest request
               , body = message'
               }
   | "/user-agent" == request.target =
-      let body = fromMaybe "" $ getHeaderValue "user-agent" request.headers
+      let body = fromMaybe "" $ getHeaderValue "User-Agent" request.headers
       in  pure
             (emptyResponse OK)
               { Response.headers =
                   [ ("Content-Type", "text/plain")
-                  , ("Content-Length", showt (T.length body))
+                  , ("Content-Length", showt $ T.length body)
                   ]
               , body
               }
@@ -121,3 +140,19 @@ handleRequest request
   where
     emptyResponse :: HttpStatus -> Response
     emptyResponse status = Response {status, headers = [], body = ""}
+
+handleConnectionCloseHeader :: Request -> Response -> Response
+handleConnectionCloseHeader request response =
+  if containsCloseHeader request.headers
+    then
+      response
+        { Response.headers =
+            response.headers
+              <> [("Connection", "close")]
+        }
+    else response
+
+containsCloseHeader :: [HttpHeader] -> Bool
+containsCloseHeader headers =
+  let connection = fromMaybe "" $ getHeaderValue "Connection" headers
+  in  T.toLower connection == "close"

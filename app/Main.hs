@@ -36,6 +36,7 @@ main = do
       peerName <- getPeerName clientSocket
       putStrLn $ "Accepted connection from " <> show peerName
       flip runReaderT serverEnv . runServerM . runEffect $ server clientSocket
+      close clientSocket
   where
     opts =
       info
