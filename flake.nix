@@ -1,7 +1,7 @@
 # Source: https://docs.haskellstack.org/en/stable/topics/nix_integration
 
 {
-  description = "CodeCrafters: Build your own Redis";
+  description = "CodeCrafters: Build your own HTTP server";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
